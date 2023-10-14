@@ -128,17 +128,97 @@ def fetch_emails_with_details():
         print(f'An error occurred while fetching emails: {error}')
         return []
 
+# if __name__ == '__main__':
+#     # Fetch emails with additional details
+#     emails_with_details = fetch_emails_with_details()
+
+#     if emails_with_details:
+#         print(f'Number of emails in the inbox: {len(emails_with_details)}')
+#         print('Email Details:')
+#         for email_info in emails_with_details:
+#             print(f'ID: {email_info["id"]}')
+#             print(f'From: {email_info["from"]}')
+#             print(f'Subject: {email_info["subject"]}')
+#             print(f'Message: {email_info["message"]}')
+#             print(f'Received Date/Time: {email_info["received_datetime"]}')
+#             print()
+
+def store_emails_in_database(emails_with_details):
+    try:
+        conn = sqlite3.connect('email_database.db')
+        cursor = conn.cursor()
+
+        for email_info in emails_with_details:
+            cursor.execute('''
+                INSERT INTO emails (id, from_address, subject, message, received_datetime)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (email_info['id'], email_info['from'], email_info['subject'], email_info['message'], email_info['received_datetime']))
+
+        conn.commit()
+        conn.close()
+        print('Emails stored in the database.')
+
+    except sqlite3.Error as error:
+        print(f'An error occurred while storing emails in the database: {error}')
+
+import sqlite3
 if __name__ == '__main__':
+
+
+    # Connect to the SQLite database (create a new one if it doesn't exist)
+    conn = sqlite3.connect('email_database.db')
+
+    # Create a cursor to execute SQL commands
+    cursor = conn.cursor()
+
+    # Create a table to store email data
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS emails (
+            id TEXT PRIMARY KEY,
+            from_address TEXT,
+            subject TEXT,
+            message TEXT,
+            received_datetime TEXT
+        )
+    ''')
+
     # Fetch emails with additional details
     emails_with_details = fetch_emails_with_details()
 
     if emails_with_details:
-        print(f'Number of emails in the inbox: {len(emails_with_details)}')
-        print('Email Details:')
-        for email_info in emails_with_details:
-            print(f'ID: {email_info["id"]}')
-            print(f'From: {email_info["from"]}')
-            print(f'Subject: {email_info["subject"]}')
-            print(f'Message: {email_info["message"]}')
-            print(f'Received Date/Time: {email_info["received_datetime"]}')
-            print()
+        store_emails_in_database(emails_with_details)
+
+    # Close the database connection
+    conn.close()
+
+
+        
+# to test:
+# import sqlite3
+
+# # Connect to the SQLite database
+# conn = sqlite3.connect('email_database.db')
+
+# # Create a cursor to execute SQL commands
+# cursor = conn.cursor()
+
+# # Execute an SQL query to retrieve data from the "emails" table
+# cursor.execute("SELECT * FROM emails")
+
+# # Fetch all the rows
+# rows = cursor.fetchall()
+
+# # Loop through the rows and print the data
+# for row in rows:
+#     id, from_address, subject, message, received_datetime = row
+#     print(f"ID: {id}")
+#     print(f"From: {from_address}")
+#     print(f"Subject: {subject}")
+#     print(f"Message: {message}")
+#     print(f"Received Date/Time: {received_datetime}")
+#     print()
+
+# # Close the database connection
+# conn.close()
+
+

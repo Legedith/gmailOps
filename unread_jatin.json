@@ -1,0 +1,18 @@
+{
+  "rule_name": "Mark Unread - Jatin",
+  "rule_description": "Mark unread emails from this cool guy Jatin.",
+  "rule_type": "All",
+  "rules": [
+    {
+      "field": "From",
+      "predicate": "equals",
+      "value": "21mcmc01@uohyd.ac.in"
+    }
+  ],
+  "actions": [
+    {
+      "action_type": "mark",
+      "action_value": "unread"
+    }
+  ]
+}
