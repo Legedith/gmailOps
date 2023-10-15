@@ -1,0 +1,22 @@
+{
+  "rule_name": "Interview sorter",
+  "rule_description": "sorts the emails which correlate to interviews",
+  "rule_type": "All",
+  "rules": [
+    {
+      "field": "Subject",
+      "predicate": "contains",
+      "value": "you"
+    },
+    {
+      "field": "Received Date/Time",
+      "predicate": "greater than",
+      "value": "0 D"
+    }
+  ],
+  "actions": [
+    {
+      "action_type": "mark",
+      "action_value": "read"
+    }]
+}

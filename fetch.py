@@ -1,4 +1,5 @@
 from __future__ import print_function
+import sqlite3
 import os.path
 
 from google.auth.transport.requests import Request
@@ -9,6 +10,7 @@ from googleapiclient.errors import HttpError
 import base64
 # Define the Gmail API scope so we can read emails, move emails, add or remove labels, and mark as read, unread
 SCOPES = ['https://www.googleapis.com/auth/gmail.modify']
+
 
 def authenticate_gmail():
     creds = None
@@ -32,6 +34,7 @@ def authenticate_gmail():
 
     return creds
 
+
 def fetch_emails():
     try:
         # Authenticate with Gmail API
@@ -42,7 +45,8 @@ def fetch_emails():
 
         # Fetch a list of email messages from the inbox
         # results = service.users().messages().list(userId='me', labelIds=['INBOX']).execute()
-        results = service.users().messages().list(userId='me', labelIds=['happyfox'], maxResults=10).execute()
+        results = service.users().messages().list(
+            userId='me', labelIds=['happyfox'], maxResults=10).execute()
         messages = results.get('messages', [])
 
         if not messages:
@@ -63,7 +67,7 @@ def fetch_emails():
 #         print('Message IDs:')
 #         for message in messages:
 #             print(message['id'])
-    
+
 
 def fetch_emails_with_details():
     try:
@@ -74,7 +78,8 @@ def fetch_emails_with_details():
         service = build('gmail', 'v1', credentials=creds)
 
         # Fetch a list of email messages from the inbox
-        results = service.users().messages().list(userId='me', labelIds=['INBOX'], maxResults=200).execute()
+        results = service.users().messages().list(
+            userId='me', labelIds=['INBOX'], maxResults=20).execute()
         messages = results.get('messages', [])
 
         if not messages:
@@ -85,7 +90,8 @@ def fetch_emails_with_details():
 
         for message in messages:
             # Get the full email message details
-            email_details = service.users().messages().get(userId='me', id=message['id']).execute()
+            email_details = service.users().messages().get(
+                userId='me', id=message['id']).execute()
 
             # Extract desired fields
             from_address = None
@@ -115,7 +121,8 @@ def fetch_emails_with_details():
                 if 'data' in message_body:
                     message_data = message_body['data']
                     # You may need to decode the message data from base64
-                    message_text = base64.urlsafe_b64decode(message_data).decode('utf-8')
+                    message_text = base64.urlsafe_b64decode(
+                        message_data).decode('utf-8')
 
             email_info = {
                 'id': message['id'],
@@ -147,6 +154,7 @@ def fetch_emails_with_details():
 #             print(f'Received Date/Time: {email_info["received_datetime"]}')
 #             print()
 
+
 def store_emails_in_database(emails_with_details):
     try:
         conn = sqlite3.connect('email_database.db')
@@ -168,12 +176,11 @@ def store_emails_in_database(emails_with_details):
         print('Emails stored in the database.')
 
     except sqlite3.Error as error:
-        print(f'An error occurred while storing emails in the database: {error}')
+        print(
+            f'An error occurred while storing emails in the database: {error}')
 
-import sqlite3
 
 if __name__ == '__main__':
-
 
     # Connect to the SQLite database (create a new one if it doesn't exist)
     conn = sqlite3.connect('email_database.db')
@@ -202,7 +209,6 @@ if __name__ == '__main__':
     conn.close()
 
 
-        
 # to test:
 # import sqlite3
 
@@ -224,11 +230,9 @@ if __name__ == '__main__':
 #     print(f"ID: {id}")
 #     print(f"From: {from_address}")
 #     print(f"Subject: {subject}")
-#     print(f"Message: {message}")
+#     # print(f"Message: {message}")
 #     print(f"Received Date/Time: {received_datetime}")
 #     print()
 
 # # Close the database connection
 # conn.close()
-
-

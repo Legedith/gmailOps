@@ -1,0 +1,32 @@
+{
+  "rule_name": "HappyFox",
+  "rule_description": "Find assesments by HappyFox",
+  "rule_type": "All",
+  "rules": [
+    {
+      "field": "From",
+      "predicate": "contains",
+      "value": "happyfox"
+    },
+    {
+      "field": "Subject",
+      "predicate": "contains",
+      "value": "Assignment"
+    },
+    {
+      "field": "Received Date/Time",
+      "predicate": "less than",
+      "value": "3 D"
+    }
+  ],
+  "actions": [
+    {
+      "action_type": "mark",
+      "action_value": "unread"
+    },
+    {
+      "action_type": "move",
+      "action_value": "Label_5268380041130582002"
+    }
+  ]
+}
