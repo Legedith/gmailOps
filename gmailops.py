@@ -1,17 +1,17 @@
 import argparse
 import sqlite3
 import json
-import pytz
 from datetime import datetime, timedelta
-
+import pytz
+from typing import List, Dict, Any
 
 class Rule:
-    def __init__(self, field, predicate, value):
+    def __init__(self, field: str, predicate: str, value: str):
         self.field = field
         self.predicate = predicate
         self.value = value
 
-    def evaluate(self, email):
+    def evaluate(self, email: Dict[str, Any]) -> bool:
         if self.field == "From":
             field_value = email.get("From", "")
         elif self.field == "Subject":
@@ -23,9 +23,7 @@ class Rule:
         else:
             return False  # Field not supported
 
-        # Subject or Message can be empty
         if self.field in ["From", "Subject", "Message"] and field_value:
-            # Not accounting for case sensitivity
             if self.predicate == "contains":
                 return self.value.lower() in field_value.lower()
             elif self.predicate == "does not contain":
@@ -39,12 +37,10 @@ class Rule:
             date_formats = ["%a, %d %b %Y %H:%M:%S %z",
                             "%d %b %Y %H:%M:%S %z (UTC)"]
 
-            for format in date_formats:
-                date_str = email.get(
-                    "Received Date/Time").replace(" (UTC)", "")
-                # print(date_str)
+            for date_format in date_formats:
+                date_str = email.get("Received Date/Time").replace(" (UTC)", "")
                 try:
-                    email_date = datetime.strptime(date_str, format)
+                    email_date = datetime.strptime(date_str, date_format)
                     break
                 except Exception as e:
                     print(f"Error parsing date: {e}")
@@ -53,14 +49,12 @@ class Rule:
             value_parts = self.value.split()
             num = int(value_parts[0])
             unit = value_parts[1]
-            # print(datetime.now(pytz.UTC))
+
             if unit == "D":
                 comparison_date = datetime.now(pytz.UTC) - timedelta(days=num)
             elif unit == "M":
-                comparison_date = datetime.now(
-                    pytz.UTC) - timedelta(days=num * 30)
+                comparison_date = datetime.now(pytz.UTC) - timedelta(days=num * 30)
 
-            # print(email_date, comparison_date)
             if self.predicate == "less than":
                 return email_date >= comparison_date
             elif self.predicate == "greater than":
@@ -68,24 +62,22 @@ class Rule:
         else:
             return False  # Predicate not supported
 
-
 class RuleCollection:
-    def __init__(self, rule_data):
+    def __init__(self, rule_data: Dict[str, Any]):
         self.rule_name = rule_data.get("rule_name", "")
         self.rule_description = rule_data.get("rule_description", "")
         self.rule_type = rule_data.get("rule_type", "")
         self.actions = rule_data.get("actions", [])
-        self.rules = [Rule(rule['field'], rule['predicate'], rule['value'])
-                      for rule in rule_data.get("rules", [])]
+        self.rules = [Rule(rule['field'], rule['predicate'], rule['value']) for rule in rule_data.get("rules", [])]
 
-    def evaluate(self, email):
+    def evaluate(self, email: Dict[str, Any]) -> bool:
         check_func = all if self.rule_type.lower() == "all" else any
         if check_func(rule.evaluate(email) for rule in self.rules):
             self.execute_actions(email)
             return True
         return False
 
-    def execute_actions(self, email):
+    def execute_actions(self, email: Dict[str, Any]) -> None:
         for action in self.actions:
             action_type = action["action_type"]
             action_value = action["action_value"]
@@ -94,7 +86,7 @@ class RuleCollection:
             elif action_type == "move":
                 self.move(email, action_value)
 
-    def mark(self, email, action_value):
+    def mark(self, email: Dict[str, Any], action_value: str) -> None:
         from fetch import authenticate_gmail
         from googleapiclient.discovery import build
         # Use the Gmail API to mark the email
@@ -120,7 +112,7 @@ class RuleCollection:
         else:
             print(f"Invalid action: {action_value}. No action taken.")
 
-    def move(self, email, action_value):
+    def move(self, email: Dict[str, Any], action_value: str) -> None:
         from fetch import authenticate_gmail
         from googleapiclient.discovery import build
         # Use the Gmail API to mark the email
@@ -141,8 +133,7 @@ class RuleCollection:
         # Print email subject
         # print(f"Email subject: {email['Subject']}")
 
-
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Process emails using rules from a JSON file.")
     parser.add_argument("json_file", nargs="?", default="./rules/Happy_Fox.json",
@@ -169,11 +160,9 @@ def main():
             "ID": row[0],
             "From": row[1],
             "Subject": row[2],
-            "Message": row[3],  # Include the "Message" field
-            # Include the "Received Date/Time" field
+            "Message": row[3],
             "Received Date/Time": row[4],
         }
-        # print(email['Subject'])
 
         # Check the email against each rule
         for rule_collection in rules:
@@ -185,7 +174,6 @@ def main():
 
     # Close the database connection
     conn.close()
-
 
 if __name__ == "__main__":
     main()

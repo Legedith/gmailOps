@@ -1,6 +1,6 @@
 import json
 
-def create_rule(rule_name, rule_description, rule_type, fields, actions):
+def create_rule(rule_name:str, rule_description:str, rule_type:str, fields, actions):
     rule = {
         "rule_name": rule_name,
         "rule_description": rule_description,
@@ -29,7 +29,7 @@ def prompt_for_field():
         else:
             print("Invalid field number. Please try again.")
 
-def prompt_for_predicate(field):
+def prompt_for_predicate(field: str):
     allowed_predicates = {
         "From": ["contains", "does not contain", "equals", "does not equal"],
         "Subject": ["contains", "does not contain", "equals", "does not equal"],
@@ -46,7 +46,7 @@ def prompt_for_predicate(field):
         else:
             print("Invalid predicate number. Please try again.")
 
-def prompt_for_value(field):
+def prompt_for_value(field: str):
     if field == "Received Date/Time":
         print("Select a time unit:")
         print("1. Days")
