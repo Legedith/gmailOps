@@ -35,40 +35,6 @@ def authenticate_gmail():
     return creds
 
 
-def fetch_emails():
-    try:
-        # Authenticate with Gmail API
-        creds = authenticate_gmail()
-
-        # Build the Gmail API service
-        service = build('gmail', 'v1', credentials=creds)
-
-        # Fetch a list of email messages from the inbox
-        # results = service.users().messages().list(userId='me', labelIds=['INBOX']).execute()
-        results = service.users().messages().list(
-            userId='me', labelIds=['happyfox'], maxResults=10).execute()
-        messages = results.get('messages', [])
-
-        if not messages:
-            print('No emails found in the inbox.')
-            return []
-
-        return messages
-    except HttpError as error:
-        print(f'An error occurred while fetching emails: {error}')
-        return []
-
-# if __name__ == '__main__':
-#     # Fetch emails and store them in the "messages" list
-#     messages = fetch_emails()
-
-#     if messages:
-#         print(f'Number of emails in the inbox: {len(messages)}')
-#         print('Message IDs:')
-#         for message in messages:
-#             print(message['id'])
-
-
 def fetch_emails_with_details():
     try:
         # Authenticate with Gmail API
@@ -138,21 +104,6 @@ def fetch_emails_with_details():
     except HttpError as error:
         print(f'An error occurred while fetching emails: {error}')
         return []
-
-# if __name__ == '__main__':
-#     # Fetch emails with additional details
-#     emails_with_details = fetch_emails_with_details()
-
-#     if emails_with_details:
-#         print(f'Number of emails in the inbox: {len(emails_with_details)}')
-#         print('Email Details:')
-#         for email_info in emails_with_details:
-#             print(f'ID: {email_info["id"]}')
-#             print(f'From: {email_info["from"]}')
-#             print(f'Subject: {email_info["subject"]}')
-#             print(f'Message: {email_info["message"]}')
-#             print(f'Received Date/Time: {email_info["received_datetime"]}')
-#             print()
 
 
 def store_emails_in_database(emails_with_details):
