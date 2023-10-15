@@ -66,3 +66,5 @@ Once you have your credentials ready, proceed with the following steps:
    - The script will automatically perform the actions defined in the rule.
 
 That's it! You are now set up to fetch and process emails according to your rules.
+
+p.s. The `helper_scripts/testing.py` script has some rudimentary unit tests to test our rules.
