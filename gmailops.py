@@ -1,4 +1,7 @@
 import json
+import sqlite3
+import pytz
+from datetime import datetime, timedelta
 
 class Rule:
     def __init__(self, field, predicate, value):
@@ -18,75 +21,156 @@ class Rule:
         else:
             return False  # Field not supported
 
-        # - For string type fields - Contains, Does not Contain, Equals, Does not equal
-        if self.field in ["From", "Subject", "Message"]:
+        # SUbject or Message can be empty
+        if self.field in ["From", "Subject", "Message"] and field_value:
+            # Not accounting for case sensitivity
             if self.predicate == "contains":
-                return self.value in field_value
+                return self.value.lower() in field_value.lower()
             elif self.predicate == "does not contain":
-                return self.value not in field_value
+                return self.value.lower() not in field_value.lower()
             elif self.predicate == "equals":
-                return field_value == self.value
+                return field_value.lower() == self.value.lower()
             elif self.predicate == "not equals":
-                return field_value != self.value
-        
-        # - For date type field (Received) - Less than / Greater than for days / months
+                return field_value.lower() != self.value.lower()
+
         elif self.field == "Received Date/Time":
+            date_formats = ["%a, %d %b %Y %H:%M:%S %z", "%d %b %Y %H:%M:%S %z (UTC)"]
+
+            for format in date_formats:
+                date_str = email.get("Received Date/Time").replace(" (UTC)", "")
+                # print(date_str)
+                try:
+                    email_date = datetime.strptime(date_str, format)
+                    break
+                except Exception as e:
+                    print(f"Error parsing date: {e}")
+                    return False
+                
+            value_parts = self.value.split()
+            num = int(value_parts[0])
+            unit = value_parts[1]
+
             if self.predicate == "less than":
-                return field_value < self.value
+                if unit == "D":
+                    comparison_date = datetime.now(pytz.UTC) - timedelta(days=num)
+                elif unit == "M":
+                    comparison_date = datetime.now(pytz.UTC) - timedelta(days=num * 30)
             elif self.predicate == "greater than":
-                return field_value > self.value
+                if unit == "D":
+                    comparison_date = datetime.now(pytz.UTC) - timedelta(days=num + 1)
+                elif unit == "M":
+                    comparison_date = datetime.now(pytz.UTC) - timedelta(days=(num + 1) * 30)
             
+            # print(email_date, comparison_date)
+            if self.predicate == "less than":
+                return email_date > comparison_date
+            elif self.predicate == "greater than":
+                return email_date < comparison_date
         else:
             return False  # Predicate not supported
 
+
+
 class RuleCollection:
-    def __init__(self, rules, rule_type):
-        self.rules = [Rule(rule['field'], rule['predicate'], rule['value']) for rule in rules]
-        self.rule_type = rule_type
+    def __init__(self, rule_data):
+        self.rule_name = rule_data.get("rule_name", "")
+        self.rule_description = rule_data.get("rule_description", "")
+        self.rule_type = rule_data.get("rule_type", "")
+        self.actions = rule_data.get("actions", [])
+        self.rules = [Rule(rule['field'], rule['predicate'], rule['value']) for rule in rule_data.get("rules", [])]
 
     def evaluate(self, email):
-        if self.rule_type == "All":
-            return all(rule.evaluate(email) for rule in self.rules)
-        elif self.rule_type == "Any":
-            return any(rule.evaluate(email) for rule in self.rules)
-        else:
-            return False  # Rule type not supported
+        check_func = all if self.rule_type.lower() == "all" else any
+        if check_func(rule.evaluate(email) for rule in self.rules):
+            self.execute_actions(email)
+            return True
+        return False
 
-# to test:
-import sqlite3
+    def execute_actions(self, email):
+        for action in self.actions:
+            action_type = action["action_type"]
+            action_value = action["action_value"]
+            if action_type == "mark":
+                self.mark(email, action_value)
+            elif action_type == "move":
+                self.move(email, action_value)
+    
+    
+    def mark(self, email, action_value):
+        from fetch import authenticate_gmail
+        from googleapiclient.discovery import build
+        # Use the Gmail API to mark the email
+        creds = authenticate_gmail()
+        service = build('gmail', 'v1', credentials=creds)
+
+        # Retrieve the email ID from your email data
+        email_id = email['ID']
+
+        # Implement your marking logic here
+        if action_value == "read":
+            # Mark the email as read
+            service.users().messages().modify(userId='me', id=email_id, body={'removeLabelIds': ['UNREAD'], 'addLabelIds': []}).execute()
+            print(f"Marked email with ID: {email_id} as read")
+        elif action_value == "unread":
+            # Mark the email as unread
+            service.users().messages().modify(userId='me', id=email_id, body={'removeLabelIds': [], 'addLabelIds': ['UNREAD']}).execute()
+            print(f"Marked email with ID: {email_id} as unread")
+        else:
+            print(f"Invalid action: {action_value}. No action taken.")
+
+
+    def move(self, email, action_value):
+        from fetch import authenticate_gmail
+        from googleapiclient.discovery import build
+        # Use the Gmail API to mark the email
+        creds = authenticate_gmail()
+        service = build('gmail', 'v1', credentials=creds)
+
+        # Retrieve the email ID from your email data
+        email_id = email['ID']
+
+        # Implement your moving logic here
+        # For example, you can use the 'users().messages().modify()' method to add a label to the email.
+        # Replace 'Label_ID' with the actual label you want to use.
+        label_id = action_value
+        service.users().messages().modify(userId='me', id=email_id, body={'addLabelIds': [label_id]}).execute()
+
+        print(f"Moved email with ID: {email_id} to folder: {action_value}")
+        # Print email subject
+        # print(f"Email subject: {email['Subject']}")
 
 def main():
+    # Load rules from a JSON file and create rule instances
+    rules = []
+
+    with open("Happy_Fox.json", "r") as json_file:
+        rule_data = json.load(json_file)
+        rules.append(RuleCollection(rule_data))
+
+    # Simulate email objects using database rows
     # Connect to the SQLite database
     conn = sqlite3.connect('email_database.db')
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM emails")
     rows = cursor.fetchall()
 
-    rules = []  # Store rule instances here
-
-    # Load rules from a JSON file and create rule instances
-    with open("rules.json", "r") as json_file:
-        rule_data = json.load(json_file)
-        rules = [RuleCollection(rule_data['rules'], rule_data['rule_type'])]
-
-    # Simulate email objects using database rows
     for row in rows:
         email = {
             "ID": row[0],
             "From": row[1],
             "Subject": row[2],
-            # Add other fields as needed
+            "Message": row[3],  # Include the "Message" field
+            "Received Date/Time": row[4],  # Include the "Received Date/Time" field
         }
+        # print(email['Subject'])
 
         # Check the email against each rule
         for rule_collection in rules:
-            if rule_collection.evaluate(email):
-                # Perform the appropriate action based on the rule
-                for rule in rule_collection.rules:
-                    if rule.predicate == "mark":
-                        rule.mark(email)
-                    elif rule.predicate == "move":
-                        rule.move(email)
+            try:
+                rule_collection.evaluate(email)
+            except Exception as e:
+                print(f"Error evaluating email: {e}")
+                print(f"Email: {email}")
 
     # Close the database connection
     conn.close()

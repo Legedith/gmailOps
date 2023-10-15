@@ -1,0 +1,42 @@
+{
+  "rule_name": "Happy Fox",
+  "rule_description": "A rule to find all mails from the happy folks at happy fox",
+  "rule_type": "ANy",
+  "rules": [
+    {
+      "field": "From",
+      "predicate": "contains",
+      "value": "happyfox"
+    },
+    {
+      "field": "Subject",
+      "predicate": "contains",
+      "value": "happyfox"
+    },
+    {
+      "field": "Subject",
+      "predicate": "contains",
+      "value": "happy fox"
+    },
+    {
+      "field": "Message",
+      "predicate": "contains",
+      "value": "happyfox"
+    },
+    {
+      "field": "Message",
+      "predicate": "contains",
+      "value": "happy fox"
+    }
+  ],
+  "actions": [
+    {
+      "action_type": "mark",
+      "action_value": "unread"
+    },
+    {
+      "action_type": "move",
+      "action_value": "Label_5268380041130582002"
+    }
+  ]
+}

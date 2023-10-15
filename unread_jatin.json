@@ -5,7 +5,7 @@
   "rules": [
     {
       "field": "From",
-      "predicate": "equals",
+      "predicate": "contains",
       "value": "21mcmc01@uohyd.ac.in"
     }
   ],

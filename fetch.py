@@ -7,8 +7,8 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import base64
-# Define the Gmail API scope for read-only access
-SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
+# Define the Gmail API scope so we can read emails, move emails, add or remove labels, and mark as read, unread
+SCOPES = ['https://www.googleapis.com/auth/gmail.modify']
 
 def authenticate_gmail():
     creds = None
@@ -74,7 +74,7 @@ def fetch_emails_with_details():
         service = build('gmail', 'v1', credentials=creds)
 
         # Fetch a list of email messages from the inbox
-        results = service.users().messages().list(userId='me', labelIds=['Label_8803298595243364442'], maxResults=10).execute()
+        results = service.users().messages().list(userId='me', labelIds=['INBOX'], maxResults=200).execute()
         messages = results.get('messages', [])
 
         if not messages:
@@ -103,7 +103,11 @@ def fetch_emails_with_details():
                     received_datetime = header['value']
 
             payload = email_details.get('payload')
-            payload = payload['parts'][0]
+            # print(payload.keys())
+            try:
+                payload = payload['parts'][0]
+            except:
+                pass
             # print('------------------------------------------------------------------')
             if payload:
                 message_body = payload.get('body', {})
@@ -149,10 +153,15 @@ def store_emails_in_database(emails_with_details):
         cursor = conn.cursor()
 
         for email_info in emails_with_details:
+            # some emails might already be there, we will just modify them
             cursor.execute('''
-                INSERT INTO emails (id, from_address, subject, message, received_datetime)
+                INSERT OR REPLACE INTO emails (id, from_address, subject, message, received_datetime)
                 VALUES (?, ?, ?, ?, ?)
             ''', (email_info['id'], email_info['from'], email_info['subject'], email_info['message'], email_info['received_datetime']))
+            # cursor.execute('''
+            #     INSERT INTO emails (id, from_address, subject, message, received_datetime)
+            #     VALUES (?, ?, ?, ?, ?)
+            # ''', (email_info['id'], email_info['from'], email_info['subject'], email_info['message'], email_info['received_datetime']))
 
         conn.commit()
         conn.close()
@@ -162,6 +171,7 @@ def store_emails_in_database(emails_with_details):
         print(f'An error occurred while storing emails in the database: {error}')
 
 import sqlite3
+
 if __name__ == '__main__':
 
 
