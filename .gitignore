@@ -3,3 +3,7 @@ fox
 credentials.json
 token.json
 email_database.db
+compose.py
+*.pdf
+*.docs
+*.xlsx
