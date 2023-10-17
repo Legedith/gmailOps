@@ -31,6 +31,7 @@ def create_email_message(to, sender, subject, message, attachment_path=None):
     mime_message['From'] = sender
     mime_message['Subject'] = subject
     mime_message.set_content(message)
+    mime_message.add_alternative(message, subtype='html')
 
     if attachment_path:
         attach_file(mime_message, attachment_path)
