@@ -34,6 +34,47 @@ def authenticate_gmail():
 
     return creds
 
+def create_email_database(db_name='email_database.db'):
+    try:
+        # Connect to the SQLite database
+        conn = sqlite3.connect(db_name)
+        cursor = conn.cursor()
+
+        # Create a table to store email data if it doesn't exist
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS emails (
+                id TEXT PRIMARY KEY,
+                from_address TEXT,
+                subject TEXT,
+                message TEXT,
+                received_datetime TEXT
+            )
+        ''')
+
+        # Create a table to store labels if it doesn't exist
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS labels (
+            id TEXT PRIMARY KEY NOT NULL
+    )
+        ''')
+
+        # Create a table to associate emails with labels
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS email_labels (
+                email_id TEXT,
+                label_id TEXT,
+                FOREIGN KEY (email_id) REFERENCES emails(id),
+                FOREIGN KEY (label_id) REFERENCES labels(id),
+                PRIMARY KEY (email_id, label_id)
+            )
+        ''')
+
+        # Commit changes and close the database connection
+        conn.commit()
+        conn.close()
+
+    except sqlite3.Error as error:
+        print(f"Error creating database tables: {error}")
 
 def fetch_emails_with_details():
     try:
@@ -75,18 +116,15 @@ def fetch_emails_with_details():
                     received_datetime = header['value']
 
             payload = email_details.get('payload')
-            # print(payload.keys())
             try:
                 payload = payload['parts'][0]
             except:
                 pass
-            # print('------------------------------------------------------------------')
             if payload:
                 message_body = payload.get('body', {})
-                # print(message_body)
                 if 'data' in message_body:
                     message_data = message_body['data']
-                    # You may need to decode the message data from base64
+                    # Decode the message data from base64
                     message_text = base64.urlsafe_b64decode(
                         message_data).decode('utf-8')
 
@@ -95,9 +133,10 @@ def fetch_emails_with_details():
                 'from': from_address,
                 'subject': subject,
                 'message': message_text,
-                'received_datetime': received_datetime
+                'received_datetime': received_datetime,
+                'label_ids': email_details.get('labelIds', [])
             }
-
+            print(email_info['label_ids'])
             emails_with_details.append(email_info)
 
         return emails_with_details
@@ -105,62 +144,74 @@ def fetch_emails_with_details():
         print(f'An error occurred while fetching emails: {error}')
         return []
 
-
-def store_emails_in_database(emails_with_details):
+def store_emails_in_database(conn, emails_with_details):
     try:
-        conn = sqlite3.connect('email_database.db')
         cursor = conn.cursor()
 
         for email_info in emails_with_details:
-            # some emails might already be there, we will just modify them
+            # Insert or replace the email in the emails table
             cursor.execute('''
                 INSERT OR REPLACE INTO emails (id, from_address, subject, message, received_datetime)
                 VALUES (?, ?, ?, ?, ?)
             ''', (email_info['id'], email_info['from'], email_info['subject'], email_info['message'], email_info['received_datetime']))
-            # cursor.execute('''
-            #     INSERT INTO emails (id, from_address, subject, message, received_datetime)
-            #     VALUES (?, ?, ?, ?, ?)
-            # ''', (email_info['id'], email_info['from'], email_info['subject'], email_info['message'], email_info['received_datetime']))
 
+            # Insert labels into the labels table and associate them with the email
+            label_ids = []
+            for label_id in email_info.get('label_ids', []):
+                label_name = label_id.split('/')[-1]
+                cursor.execute('INSERT OR IGNORE INTO labels (id) VALUES (?)', (label_name,))
+                label_ids.append(label_name)
+
+            for label_id in label_ids:
+                cursor.execute('''
+                    INSERT OR IGNORE INTO email_labels (email_id, label_id)
+                    VALUES (?, ?)
+                ''', (email_info['id'], label_id))
+
+        # Commit changes
         conn.commit()
-        conn.close()
         print('Emails stored in the database.')
 
     except sqlite3.Error as error:
-        print(
-            f'An error occurred while storing emails in the database: {error}')
+        print(f'An error occurred while storing emails in the database: {error}')
 
+def connect_to_database(db_name='email_database.db'):
+    try:
+        # Connect to the SQLite database
+        conn = sqlite3.connect(db_name)
+        return conn
+    except sqlite3.Error as error:
+        print(f"Error connecting to the database: {error}")
+        return None
+
+def main(db_name='email_database.db'):
+    try:
+        # Step 1: Create the email database and tables
+        create_email_database(db_name)
+
+        # Step 2: Connect to the database
+        conn = connect_to_database(db_name)
+        if conn is not None:
+            # Step 3: Fetch email details
+            emails_with_details = fetch_emails_with_details()
+
+            # Step 4: Store email details in the database
+            if emails_with_details:
+                store_emails_in_database(conn, emails_with_details)
+
+            # Close the database connection
+            conn.close()
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+    finally:
+        conn.close()
+        print('Done.')
 
 if __name__ == '__main__':
-
-    # Connect to the SQLite database (create a new one if it doesn't exist)
-    conn = sqlite3.connect('email_database.db')
-
-    # Create a cursor to execute SQL commands
-    cursor = conn.cursor()
-
-    # Create a table to store email data
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS emails (
-            id TEXT PRIMARY KEY,
-            from_address TEXT,
-            subject TEXT,
-            message TEXT,
-            received_datetime TEXT
-        )
-    ''')
-
-    # Fetch emails with additional details
-    emails_with_details = fetch_emails_with_details()
-
-    if emails_with_details:
-        store_emails_in_database(emails_with_details)
-
-    # Close the database connection
-    conn.close()
+    main()
 
 
-# to test:
+# # to test:
 # import sqlite3
 
 # # Connect to the SQLite database
@@ -183,6 +234,32 @@ if __name__ == '__main__':
 #     print(f"Subject: {subject}")
 #     # print(f"Message: {message}")
 #     print(f"Received Date/Time: {received_datetime}")
+#     print()
+
+# # Connect to the SQLite database
+# conn = sqlite3.connect('email_database.db')
+
+# # Create a cursor to execute SQL commands
+# cursor = conn.cursor()
+
+# # Print data from the "labels" table
+# cursor.execute("SELECT * FROM labels")
+# labels = cursor.fetchall()
+
+# print("Labels:")
+# for label in labels:
+#     print(f"Label ID: {label}")
+#     print()
+
+# # Print data from the "email_labels" table
+# cursor.execute("SELECT * FROM email_labels")
+# email_labels = cursor.fetchall()
+
+# print("Email Labels:")
+# for email_label in email_labels:
+#     email_id, label_id = email_label
+#     print(f"Email ID: {email_id}")
+#     print(f"Label ID: {label_id}")
 #     print()
 
 # # Close the database connection
