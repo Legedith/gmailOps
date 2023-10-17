@@ -76,7 +76,7 @@ def create_email_database(db_name='email_database.db'):
     except sqlite3.Error as error:
         print(f"Error creating database tables: {error}")
 
-def fetch_emails_with_details():
+def fetch_emails_with_details(label_ids=['INBOX'], max_results=20):
     try:
         # Authenticate with Gmail API
         creds = authenticate_gmail()
@@ -84,13 +84,13 @@ def fetch_emails_with_details():
         # Build the Gmail API service
         service = build('gmail', 'v1', credentials=creds)
 
-        # Fetch a list of email messages from the inbox
+        # Fetch a list of email messages with specified label_ids and max_results
         results = service.users().messages().list(
-            userId='me', labelIds=['INBOX'], maxResults=20).execute()
+            userId='me', labelIds=label_ids, maxResults=max_results).execute()
         messages = results.get('messages', [])
 
         if not messages:
-            print('No emails found in the inbox.')
+            print('No emails found with the specified label_ids.')
             return []
 
         emails_with_details = []
@@ -136,7 +136,7 @@ def fetch_emails_with_details():
                 'received_datetime': received_datetime,
                 'label_ids': email_details.get('labelIds', [])
             }
-            print(email_info['label_ids'])
+            # print(email_info['label_ids'])
             emails_with_details.append(email_info)
 
         return emails_with_details
@@ -184,16 +184,25 @@ def connect_to_database(db_name='email_database.db'):
         print(f"Error connecting to the database: {error}")
         return None
 
-def main(db_name='email_database.db'):
+import argparse
+
+def main():
+    parser = argparse.ArgumentParser(description="Fetch and store emails with details.")
+    parser.add_argument("--label_ids", nargs="+", default=['INBOX'], help="Label IDs to filter emails")
+    parser.add_argument("--max_results", type=int, default=20, help="Maximum number of emails to fetch")
+    parser.add_argument("--db_name", default='email_database.db', help="Database name")
+
+    args = parser.parse_args()
+
     try:
         # Step 1: Create the email database and tables
-        create_email_database(db_name)
+        create_email_database(args.db_name)
 
         # Step 2: Connect to the database
-        conn = connect_to_database(db_name)
+        conn = connect_to_database(args.db_name)
         if conn is not None:
-            # Step 3: Fetch email details
-            emails_with_details = fetch_emails_with_details()
+            # Step 3: Fetch email details with provided label_ids and max_results
+            emails_with_details = fetch_emails_with_details(args.label_ids, args.max_results)
 
             # Step 4: Store email details in the database
             if emails_with_details:
@@ -203,12 +212,10 @@ def main(db_name='email_database.db'):
             conn.close()
     except Exception as e:
         print(f"An error occurred: {str(e)}")
-    finally:
-        conn.close()
-        print('Done.')
 
 if __name__ == '__main__':
     main()
+
 
 
 # # to test:
